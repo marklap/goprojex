@@ -41,6 +41,10 @@ function deactivate() {
     unset _OLD_GOPJX_PS1
   fi
 
+  if [ -n "$VIRTUAL_ENV" ]; then
+    unset VIRTUAL_ENV
+  fi
+
   if [ "$1" != "nondestructive" ]; then
     unset -f deactivate
   fi
@@ -54,4 +58,5 @@ export _OLD_GOPJX_PS1="$PS1"
 export PS1="[go:{{.Name}}] $_OLD_GOPJX_PS1"
 export GOPATH={{.GoPath}}
 export PATH=$GOPATH/bin:$PATH
+export VIRTUAL_ENV=$GOPATH
 `
