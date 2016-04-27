@@ -45,6 +45,10 @@ function deactivate() {
     unset VIRTUAL_ENV
   fi
 
+  if [ -n "$BASH" -o -n "$ZSH_VERSION" ]; then
+      hash -r 2>/dev/null
+  fi
+
   if [ "$1" != "nondestructive" ]; then
     unset -f deactivate
   fi
@@ -52,10 +56,13 @@ function deactivate() {
 
 deactivate nondestructive
 
+if [ -z "$VIRTUAL_ENV_DISABLE_PROMPT" ]; then
+  export _OLD_GOPJX_PS1="$PS1"
+  export PS1="[go:{{.Name}}] $_OLD_GOPJX_PS1"
+fi
+
 export _OLD_GOPJX_PATH="$PATH"
 export _OLD_GOPJX_GOPATH="$GOPATH"
-export _OLD_GOPJX_PS1="$PS1"
-export PS1="[go:{{.Name}}] $_OLD_GOPJX_PS1"
 export GOPATH={{.GoPath}}
 export PATH=$GOPATH/bin:$PATH
 export VIRTUAL_ENV=$GOPATH
