@@ -33,7 +33,7 @@ import (
 )
 
 // Version is the current semver of this project
-const Version = "0.1.1"
+const Version = "0.1.2"
 
 // GoProjexDir is the directory used for the activate script
 const GoProjexDir = ".gopjx"
