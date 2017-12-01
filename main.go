@@ -168,19 +168,22 @@ type Source struct {
 }
 
 // NewSource creates a new Source skel
-func NewSource(ws *Workspace, dirs []string) *Source {
-	parent := filepath.Base(filepath.Dir(ws.Path))
-	grandParent := filepath.Base(filepath.Dir(filepath.Dir(ws.Path)))
+func NewSource(ws *Workspace, path string, dirs []string) *Source {
+	if path == "" {
+		workspace := filepath.Base(ws.Path)
+		parent := filepath.Base(filepath.Dir(ws.Path))
+		path = filepath.Join(parent, workspace)
+	}
 	return &Source{
 		Skel{
-			filepath.Join(ws.Path, "src", filepath.Join(grandParent, parent)),
+			filepath.Join(ws.Path, "src", path),
 			dirs,
 		},
 	}
 }
 
 // GoProjex creates the goprojex directory structure
-func GoProjex(wsPath, name string) error {
+func GoProjex(wsPath, srcPath, name string) error {
 	ws, err := NewWorkspace(wsPath, workspaceSkel)
 	if err != nil {
 		return err
@@ -198,7 +201,7 @@ func GoProjex(wsPath, name string) error {
 		return err
 	}
 
-	src := NewSource(ws, sourceSkel)
+	src := NewSource(ws, srcPath, sourceSkel)
 
 	err = src.Init()
 	if err != nil {
@@ -211,6 +214,7 @@ func GoProjex(wsPath, name string) error {
 func main() {
 
 	ws := flag.String("ws", "", "path to create the workspace (othwerwise CWD)")
+	src := flag.String("src", "", "source path to create within the workspace (otherwise derived from workspace path")
 	name := flag.String("name", "", "name to display in shell prompt (otherwise base of the workspace path)")
 	version := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -220,7 +224,7 @@ func main() {
 		return
 	}
 
-	err := GoProjex(*ws, *name)
+	err := GoProjex(*ws, *src, *name)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
