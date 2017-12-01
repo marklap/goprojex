@@ -8,7 +8,7 @@ go packages.
 
     git clone git@github.com:marklap/goprojex.git
     cd goprojex
-    go build -o goprojex src/*.go
+    go build -o goprojex *.go
     cp goprojex $HOME/bin
 
 # Use
@@ -17,21 +17,19 @@ View help message
 
     goprojex -h
 
-Create a project gopath of `./myproj`, an activate script of `./myproj/activate` and a project name
-(shown in the prompt) of `[go:myproj]`
+Create a default workspace in the current directory:
 
-    goprojex myproj
+    goprojex
 
-Create a project gopath of `./.gopath`, an activate script of `./.gopath/activate` and a project
-name of `[go:myproj]`
+Create a workspace in `./here` with a source tree of 'my/code':
 
-    goprojex -name myproj .gopath
+    goprojex -ws ./here -src my/code
 
-Activate your project gopath
+Activate your workspace
 
-    . ./myproj/activate
+    . ./.gopjx/activate
 
-Deactivate your project gopath
+Deactivate your workspace
 
     deactivate
 
