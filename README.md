@@ -21,7 +21,7 @@ Create a default workspace in the current directory:
 
     goprojex
 
-Create a workspace in `./here` with a source tree of 'my/code':
+Create a workspace in `./here` with a source tree of `my/code`:
 
     goprojex -ws ./here -src my/code
 
