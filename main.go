@@ -127,7 +127,7 @@ func NewWorkspace(path string, dirs []string) (*Workspace, error) {
 }
 
 // CreateActivateScript creates the activate script
-func (w *Workspace) CreateActivateScript(projectName string) error {
+func (w *Workspace) CreateActivateScript(projectName, srcPath string) error {
 	tmpl, err := template.New("activate").Parse(activateTmplSrc)
 	if err != nil {
 		return fmt.Errorf("failed to compile activate template")
@@ -146,11 +146,13 @@ func (w *Workspace) CreateActivateScript(projectName string) error {
 	}
 
 	vars := struct {
-		Name   string
-		GoPath string
+		Name    string
+		GoPath  string
+		SrcPath string
 	}{
 		projectName,
 		w.Path,
+		srcPath,
 	}
 
 	err = tmpl.Execute(script, vars)
@@ -211,7 +213,7 @@ func GoProjex(wsPath, srcPath, name string) error {
 	}
 
 	proj := NewProject(name, ws)
-	err = ws.CreateActivateScript(proj.Name)
+	err = ws.CreateActivateScript(proj.Name, src.Path)
 	if err != nil {
 		return err
 	}

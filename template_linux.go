@@ -45,6 +45,10 @@ function deactivate() {
     unset VIRTUAL_ENV
   fi
 
+  if [ -n "$GOPJX_SRC_PATH" ]; then
+    unset GOPJX_SRC_PATH
+  fi
+
   if [ -n "$BASH" -o -n "$ZSH_VERSION" ]; then
       hash -r 2>/dev/null
   fi
@@ -66,4 +70,5 @@ export _OLD_GOPJX_GOPATH="$GOPATH"
 export GOPATH={{.GoPath}}
 export PATH=$GOPATH/bin:$PATH
 export VIRTUAL_ENV=$GOPATH
+export GOPJX_SRC_PATH={{.SrcPath}}
 `
