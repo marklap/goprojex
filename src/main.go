@@ -25,128 +25,186 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "os"
-    "path/filepath"
-    "text/template"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"text/template"
 )
 
-const Version = "0.0.1"
+// Version is the current semver of this project
+const Version = "0.1.0"
+const goprojexDir = ".gopjx"
 
-var (
-    version      bool
-    help         bool
-    project_name string
-)
-
-type activateTmplVars struct {
-    Name   string
-    GoPath string
+var workspaceSkel = []string{
+	goprojexDir,
+	"scripts",
+	"src",
 }
 
-func init() {
-    flag.BoolVar(&version, "version", false, "Print version and exit")
-    flag.StringVar(&project_name, "name", "", "A custom project name to display in the prompt (otherwise the base of the GOPATH is used)")
+var srcSkel = []string{
+	"build",
+	"cmd",
+	"configs",
+	"docs",
+	"examples",
+	"scripts",
+	"test",
+	"vendor",
 }
 
-func filepathExists(path string) (bool, error) {
-    _, err := os.Stat(path)
-    if err == nil {
-        return true, nil
-    } else if os.IsNotExist(err) {
-        return false, nil
-    }
-    return false, err
+func workspaceExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
-func deriveName(gopath, name string) string {
-    if name != "" {
-        return name
-    } else {
-        return filepath.Base(gopath)
-    }
+func projectName(name, path string) string {
+	if name == "" {
+		return filepath.Base(path)
+	}
+	return name
 }
 
-func createGoPathDir(gopath string) error {
-    exists, err := filepathExists(gopath)
-    if err != nil {
-        return err
-    }
-    if !exists {
-        if err := os.MkdirAll(gopath, os.FileMode(0775)); err != nil {
-            return err
-        }
-    }
-    return nil
+func workspacePath(path string) (string, error) {
+	if path == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = "."
+		}
+
+		path = cwd
+	}
+
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
-func createActivateScript(scriptPath string, tmpl *template.Template, vars *activateTmplVars) error {
-    script, err := os.Create(scriptPath)
-    if err != nil {
-        fmt.Println("Failed to create activate script at path" + scriptPath)
-        return err
-    }
-    defer script.Close()
-
-    err = script.Chmod(0755)
-    if err != nil {
-        return err
-    }
-
-    err = tmpl.Execute(script, vars)
-    if err != nil {
-        return err
-    }
-
-    return nil
+func sourcePath(wsPath, srcPath string) string {
+	if srcPath == "" {
+		parent := filepath.Dir(wsPath)
+		grandParent := filepath.Dir(parent)
+		srcPath = filepath.Join(parent, grandParent)
+	}
+	return filepath.Clean(filepath.Join(wsPath, "src", srcPath))
 }
 
-func createProj(gopath, name string) error {
-    project_name := deriveName(gopath, name)
+func createWorkspace(path, name string) error {
+	wsExists, err := workspaceExists(path)
+	if err != nil {
+		return err
+	}
+	if wsExists {
+		return fmt.Errorf("ERROR: Workspace already exists")
+	}
 
-    absGopath, err := filepath.Abs(gopath)
-    if err != nil {
-        fmt.Println("Failed to derive absolute path from " + gopath)
-        return err
-    }
-    activateScriptPath := filepath.Join(absGopath, "activate")
+	for _, p := range workspaceSkel {
+		if err := os.Mkdir(filepath.Join(path, p), os.FileMode(0775)); err != nil {
+			return err
+		}
+	}
 
-    tmplVars := &activateTmplVars{project_name, absGopath}
-    activateTmpl := template.Must(template.New("activate").Parse(activateTmplSrc))
+	err = createActivateScript(
+		template.Must(template.New("activate").Parse(activateTmplSrc)),
+		path,
+		name,
+	)
+	if err != nil {
+		fmt.Println("Failed to create activate script")
+		return err
+	}
 
-    err = createGoPathDir(absGopath)
-    if err != nil {
-        fmt.Println("Faile to create GOPATH dir")
-        return err
-    }
+	return nil
+}
 
-    err = createActivateScript(activateScriptPath, activateTmpl, tmplVars)
-    if err != nil {
-        fmt.Println("Failed to create activate script")
-        return err
-    }
+func createActivateScript(tmpl *template.Template, path, name string) error {
+	script, err := os.Create(filepath.Join(path, goprojexDir))
+	if err != nil {
+		return err
+	}
+	defer script.Close()
 
-    return nil
+	err = script.Chmod(0755)
+	if err != nil {
+		return err
+	}
+
+	vars := struct {
+		Name   string
+		GoPath string
+	}{
+		name,
+		path,
+	}
+
+	err = tmpl.Execute(script, vars)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createSrcTree(path string) error {
+	for _, p := range srcSkel {
+		if err := os.Mkdir(filepath.Join(path, p), os.FileMode(0775)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func goprojex(wsPath, srcPath, pName string) (err error) {
+	wsPath, err = workspacePath(wsPath)
+	if err != nil {
+		fmt.Println("ERROR: Failed to determine workspace path")
+		return err
+	}
+
+	srcPath = sourcePath(wsPath, srcPath)
+
+	pName = projectName(pName, wsPath)
+
+	err = createWorkspace(wsPath, pName)
+	if err != nil {
+		fmt.Println("Failed to create workspace")
+		return err
+	}
+
+	err = createSrcTree(srcPath)
+	if err != nil {
+		fmt.Println("Failed to create src tree")
+		return err
+	}
+
+	return nil
 }
 
 func main() {
-    flag.Parse()
-    if version {
-        fmt.Println(Version)
-        return
-    }
 
-    if flag.NArg() == 0 {
-        fmt.Println("\nERROR: Must specify your desired GOROOT path\n")
-        flag.Usage()
-        return
-    }
+	workspacePath := flag.String("path", "", "Path to where the workspace will be created (othwerwise CWD)")
+	sourcePath := flag.String("src", "", "A customer path to use for the src tree (otherwise determined from workspace parent directories")
+	projectName := flag.String("name", "", "A custom project name to display in the prompt (otherwise base of the workspace path)")
+	showVersion := flag.Bool("version", false, "Print version and exit")
+	flag.Parse()
 
-    err := createProj(flag.Arg(0), project_name)
-    if err != nil {
-        fmt.Println("Failed to create Go project")
-        return
-    }
+	if *showVersion {
+		fmt.Println(Version)
+		return
+	}
+
+	err := goprojex(*workspacePath, *sourcePath, *projectName)
+	if err != nil {
+		fmt.Println("Failed to create Go project")
+		fmt.Println(err)
+		return
+	}
 
 }
