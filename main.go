@@ -58,6 +58,8 @@ var sourceSkel = []string{
 	"vendor",
 }
 
+var errSkeletonInitNotSafe = fmt.Errorf("skeleton not safe to initialize")
+
 // Project describes the project
 type Project struct {
 	Name string
@@ -81,25 +83,22 @@ type Skel struct {
 func (s Skel) IsSafe() bool {
 	for _, d := range s.Dirs {
 		_, err := os.Stat(filepath.Join(s.Path, d))
-		if err != nil && os.IsExist(err) {
+		if err == nil || !os.IsNotExist(err) {
 			return false
 		}
 	}
 	return true
 }
 
-// Init initializes the skeleton
-func (s *Skel) Init() error {
-	if !s.IsSafe() {
-		return fmt.Errorf("Skeleton not safe to initialize")
-	}
-
+// Create creates all the skeleton directories
+func (s *Skel) Create() error {
 	for _, d := range s.Dirs {
-		if err := os.MkdirAll(filepath.Join(s.Path, d), os.FileMode(DefaultFileMod)); err != nil {
+		path := filepath.Join(s.Path, d)
+		if err := os.MkdirAll(path, os.FileMode(DefaultFileMod)); err != nil {
 			return fmt.Errorf("failed to create workspace skeleton dir: %s", d)
 		}
+		fmt.Println("created:", path)
 	}
-
 	return nil
 }
 
@@ -134,7 +133,8 @@ func (w *Workspace) CreateActivateScript(projectName string) error {
 		return fmt.Errorf("failed to compile activate template")
 	}
 
-	script, err := os.Create(filepath.Join(w.Path, GoProjexDir, "activate"))
+	path := filepath.Join(w.Path, GoProjexDir, "activate")
+	script, err := os.Create(path)
 	if err != nil {
 		return err
 	}
@@ -157,6 +157,8 @@ func (w *Workspace) CreateActivateScript(projectName string) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("created activate script:", path)
 
 	return nil
 
@@ -189,21 +191,27 @@ func GoProjex(wsPath, srcPath, name string) error {
 		return err
 	}
 
-	err = ws.Init()
+	if !ws.IsSafe() {
+		return fmt.Errorf("one or more workspace directories exist")
+	}
+
+	src := NewSource(ws, srcPath, sourceSkel)
+	if !src.IsSafe() {
+		return fmt.Errorf("one ore more workspace source directories empty")
+	}
+
+	err = ws.Create()
+	if err != nil {
+		return err
+	}
+
+	err = src.Create()
 	if err != nil {
 		return err
 	}
 
 	proj := NewProject(name, ws)
-
 	err = ws.CreateActivateScript(proj.Name)
-	if err != nil {
-		return err
-	}
-
-	src := NewSource(ws, srcPath, sourceSkel)
-
-	err = src.Init()
 	if err != nil {
 		return err
 	}
